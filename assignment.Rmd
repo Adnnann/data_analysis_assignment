@@ -96,6 +96,10 @@ unique(unique_values$unique_identifier)
 
 ## business
 
+unique_values <- data %>%
+  dplyr::mutate(unique_identifier = stringr::str_c(business_name,"-",business_latitude,"-",business_longitude)) %>%
+  dplyr::select(business_name, business_longitude, business_latitude, everything()) %>%
+  dplyr::mutate(business_names_missing_data = ifelse(business_name != '' & (business_latitude == '' | business_longitude == ''),TRUE, FALSE))
 
 
 
