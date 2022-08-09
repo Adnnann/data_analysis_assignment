@@ -1,0 +1,104 @@
+---
+title: "AtlantBH task"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(magrittr)
+```
+
+In total there are 1887 missing values in column business name. Furthermore, missing data were entered inconsistently, i.e. in some cases data were entered as hidden, while in other cases hidden was entered with capital letter. Also term Unavailable was used in some cases, hence data will require additional cleaning. For business id 85 938 latitude value is incorrect (-340.0762), while for data where business id is 73 840, 74 822, and 85 714 longitudinal values are incorrect (fall outside of valid range -+90 degrees)
+
+Further examination of data show that there are 5423 unique values in column business names, while for longitudinal values there are 2584 and latitude 2546 values 
+
+For 1709 data business name is missing, while for 
+
+```{r cars}
+
+data <- read.csv("DataSF_Restaurant_Inspections.csv")
+
+summary(data)
+
+names(data)
+#check if lat. values are in range between -+180
+validate_latitude <- data %>% dplyr::filter(business_latitude > 90 | business_latitude < -90)
+nrow(validate_latitude)
+
+#check if long. values are in range between -+90
+validate_longitude <- data %>% dplyr::filter(business_longitude> 180 | business_longitude < -180)
+nrow(validate_longitude)
+
+####################
+# 4 values are not in the range valid range for long and lat values
+####################
+
+
+#check number of unique values for business name, lat. and long
+length(unique(data$business_name))
+length(unique(data$business_latitude))
+length(unique(data$business_longitude))
+
+##################
+## discrepancu between number of distinct values for address long and latitude value
+##################
+
+sort(unique(data$business_name))
+
+data%>%dplyr::filter(stringr::str_detect(business_name,"7 Eleven"))
+
+nrow(data)
+
+
+empty_and_unknown_values <- data %>% dplyr::filter(business_name != '', business_name !='hidden', business_name !='Hidden', business_name != 'Unavailable')
+
+nrow(empty_and_unknown_values)
+
+sort(empty_and_unknown_values$business_name)
+data %>% dplyr::filter(stringr::str_detect(business_name, "^HIDD"), business_name != '')
+
+################
+# unknown, hidden data etc, were entered inconsistently i.e sometimes with capital letter and on other ocassions with lower letter
+###################
+
+
+# MISSING VALUES
+
+total_missing_business_names <-  (nrow(data) - length(na.omit(data$business_name)))+(nrow(data) -nrow(empty_and_unknown_values))
+
+
+missing_long_values <- data %>% 
+                        dplyr::filter(business_name != '', business_name !='hidden', business_name !='Hidden', business_name != 'Unavailable') %>%
+                        dplyr::select(business_longitude)%>%
+                        dplyr::mutate(long_as_string = as.character(business_longitude))%>%
+                        dplyr::filter(long_as_string == '')
+
+
+missing_lat_values <- data %>% 
+                        dplyr::filter(business_name != '', business_name !='hidden', business_name !='Hidden', business_name != 'Unavailable') %>%
+                        dplyr::select(business_latitude)%>%
+                        dplyr::mutate(long_as_string = as.character(business_latitude))%>%
+                        dplyr::filter(long_as_string == '')
+
+
+
+## business names column 
+unique_values <- data %>%
+  dplyr::mutate(unique_identifier = stringr::str_c(business_name,"-",business_latitude,"-",business_longitude)) %>%
+  dplyr::select(business_name, business_longitude, business_latitude, everything()) %>%
+  dplyr::mutate(business_names_missing_data = ifelse(business_name == '' & business_latitude != '',TRUE, FALSE))
+
+business_names_missing_data <-  dplyr::filter(unique_values, business_names_missing_data == TRUE)
+
+nrow(business_names_missing_data)
+
+unique(unique_values$unique_identifier)
+
+## business
+
+
+
+
+```
+
+
