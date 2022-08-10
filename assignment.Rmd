@@ -1,22 +1,231 @@
 ---
 title: "AtlantBH task"
-output: html_document
+output:
+  word_document: default
+  html_document: default
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(magrittr)
+library(ggplot2)
 ```
 
-In total there are 1887 missing values in column business name. Furthermore, missing data were entered inconsistently, i.e. in some cases data were entered as hidden, while in other cases hidden was entered with capital letter. Also term Unavailable was used in some cases, hence data will require additional cleaning. For business id 85 938 latitude value is incorrect (-340.0762), while for data where business id is 73 840, 74 822, and 85 714 longitudinal values are incorrect (fall outside of valid range -+90 degrees)
-
-Further examination of data show that there are 5423 unique values in column business names, while for longitudinal values there are 2584 and latitude 2546 values 
-
-For 1709 data business name is missing, while for 
-
-```{r cars}
-
+```{r master_data, include=FALSE}
 data <- read.csv("DataSF_Restaurant_Inspections.csv")
+```
+
+# Introduction
+
+Company N.N has put on the market dataset with locations of business in
+San Francisco. The supplier would like to sell POIs data at the highest
+market price. To make an informed decision about the
+potential procurement of the available dataset, I analyzed the data set
+to check data quality and consistency. My analysis focused on business
+name and longitude (hereafter long.) and latitude (hereafter lat.)
+values. The total number of data available in the dataset is 52 315.
+Data that are considered critical data (i.e., data of the utmost
+importance) are stored in columns business name, business longitude, and
+business latitude.
+
+## Descriptive statistics
+
+### Missing data
+
+In the first step, I made an analysis of missing values. In total there
+are 1 887 missing values in the column business name. Furthermore,
+missing data were entered inconsistently, i.e., in some rows and columns
+data were entered as "hidden", while in other cases word hidden was
+entered with a capital letter. Also, the term Unavailable was used to
+denote missing values.
+
+To enable consistent tracking of missing values, all values in column
+business_name that were entered as either hidden, Hidden, or
+Unavailable, and all missing values (NAs) were transformed to "NA"
+values.
+This step was taken to enable consistency in filtering, grouping, and
+summarizing data as well as checking the number of missing data.
+
+Analysis revealed that for 1 709 data business name values are missing,
+while for 22 674 long. and lat. values are missing.
+
+### Data accuracy and completeness
+
+To check the correctness of data available in the dataset, firstly I
+checked if longitude and latitude values
+all between valid ranges (long. values +-90 degrees and latitude values
++-180 degrees). Analysis revealed that there are 4 data that fall
+outside valid ranges.
+
+Further examination of data shows that there are 5 423 unique values in
+column business names out of which 370 values are represented with the
+same long. and lat. values. Data analysis also shows that there are
+unique 2 584 long. and 2546 lat. values.
+
+The precision of long. and lat. values is impacted by the number of
+decimal points. The relation between number of decimal points and the
+precision of long. and lat. values is presented in the table
+below[\[1\]](#_ftn1).
+
+\
+
+------------------------------------------------------------------------
+
+[\[1\]](#_ftnref1) Table was taken from
+<https://en.wikipedia.org/wiki/Decimal_degrees>
+
+| Decimal places | Decimal degrees | DMS              | Object that can be unambiguously recognized at this scale | N/S or E/W at equator | E/W at 23N/S | E/W at 45N/S | E/W at 67N/S |
+|----------------|-----------------|------------------|-----------------------------------------------------------|-----------------------|--------------|--------------|--------------|
+| 0              | 1.0             | 1° 00′ 0″        | country or large region                                   | 111 km                | 102 km       | 78.7 km      | 43.5 km      |
+| 1              | 0.1             | 0° 06′ 0″        | large city or district                                    | 11.1 km               | 10.2 km      | 7.87 km      | 4.35 km      |
+| 2              | 0.01            | 0° 00′ 36″       | town or village                                           | 1.11 km               | 1.02 km      | 0.787 km     | 0.435 km     |
+| 3              | 0.001           | 0° 00′ 3.6″      | neighborhood, street                                      | 111 m                 | 102 m        | 78.7 m       | 43.5 m       |
+| 4              | 0.0001          | 0° 00′ 0.36″     | individual street, large buildings                        | 11.1 m                | 10.2 m       | 7.87 m       | 4.35 m       |
+| 5              | 0.00001         | 0° 00′ 0.036″    | individual trees, houses                                  | 1.11 m                | 1.02 m       | 0.787 m      | 0.435 m      |
+| 6              | 0.000001        | 0° 00′ 0.0036″   | individual humans                                         | 111 mm                | 102 mm       | 78.7 mm      | 43.5 mm      |
+| 7              | 0.0000001       | 0° 00′ 0.00036″  | practical limit of commercial surveying                   | 11.1 mm               | 10.2 mm      | 7.87 mm      | 4.35 mm      |
+| 8              | 0.00000001      | 0° 00′ 0.000036″ | specialized surveying (e.g. tectonic plate mapping)       | 1.11 mm               | 1.02 mm      | 0.787 mm     | 0.435 mm     |
+
+```{r include=FALSE, decimal_points_precision_data}
+
+decimal_points_data <- readxl::read_excel("Decimal_points.xlsx")
+
+knitr::kable(decimal_points_data)
+
+
+```
+
+Number of decimal points in long. and lat. values impact the precision
+of data and its ability to unambiguously identify points of interest,
+and according to the table above values with 4 decimal
+points can unambiguously identify an individual street and large
+building. Three decimal points are used for the unambiguous
+identification of neighborhoods and streets. Identification with values
+that are composed of less than 3 decimal points is used for
+identification of towns, large cities, and countries
+which does not hold any relevance for navigator.ba. Data analysis shows
+29 537 longitude values have 4 or more than 4 digits and, while 66 have
+less than 4 values. Finally, 38 data have less than three decimal points
+and can be considered as data of low quality. The precision of latitude
+values is less affected by the number of decimal points, hence data
+related to the number of decimal points presented below are limited only
+to long. values.
+
+```{r}
+countDecimals<-function(x){
+  stopifnot(class(x)=="character")
+  x<-gsub("(.*)(\\.)|([0]*$)","",x)
+  nchar(x)
+}
+
+business_longitude_decimal_points_graph <- business_longitude_decimal_points <- data %>% 
+                                    dplyr::mutate(
+                                      business_longitude = as.character(business_longitude),
+                                      num_of_decimals_long_values = countDecimals(business_longitude)) %>%
+                                    dplyr::select(business_longitude, num_of_decimals_long_values) %>%
+                                    dplyr::mutate(num_of_decimals_in_longitudinal_values = as.factor(num_of_decimals_long_values),
+                                          total = 1) %>%
+                                    dplyr::group_by(num_of_decimals_in_longitudinal_values)%>%
+                                    dplyr::summarise(n = sum(total))%>%
+                                    ggplot(aes(num_of_decimals_in_longitudinal_values, n))+
+                                    geom_col(fill = rgb(0,51,160, maxColorValue = 255))+
+                                    geom_text(aes(label=n), vjust=-0.2,size=4, fontface="bold")+
+                                    theme_classic()+
+                                    xlab("Number of decimals")+
+  labs(title="Number of decimal points in long.\nvalues")+
+                                    theme(
+                                      axis.title.y = element_blank(),
+                                      plot.title = element_text(margin=margin(0,0,20,0), size =18, face="bold")
+                                    )
+
+business_longitude_decimal_points_graph                       
+```
+
+To analyze the precision of available data I have conducted row wise
+analysis of long. and lat. values. The analysis included a group
+summation of each level of decimal points available in the data set. The
+table below shows the number of decimal points in all examined data.
+From the table presented, there are 31 values with only 0s entered for
+both long. and lat. values. Furthermore, there are 22 674 missing long
+and lat values in the dataset out of which 9 rows are also missing data
+in the column business name.
+
+```{r include=FALSE, decimal_points_analysis}
+
+business_longitude_decimal_points <- data %>% 
+                                   dplyr::mutate(business_longitude = as.character(business_longitude),
+                                     num_of_decimals_long_values = countDecimals(business_longitude)) %>%
+                                    dplyr::select(business_longitude, num_of_decimals_long_values) %>%
+                                    dplyr::mutate(num_of_decimals_in_longitudinal_values = as.factor(num_of_decimals_long_values),
+                                         total = 1) %>%
+                                    dplyr::group_by(num_of_decimals_in_longitudinal_values) %>%
+                                    dplyr::summarise(n = sum(total))
+
+names(business_longitude_decimal_points)[1] <- "Number of decimal points"
+
+                                    
+knitr::kable(business_longitude_decimal_points)
+```
+
+## Data standardization 
+
+I also conducted an analysis of the standards used in the data set as
+they are critical when it comes to processing and mapping data. For the
+business city, data analysis shows that there are inconsistencies in
+entering the name of San Francisco. Data below show that there are 52
+148 values "San Francisco", 136 SF, and 31 values are missing.
+
+|     City      | Total |
+|:-------------:|:-----:|
+|      NA       |  31   |
+| San Francisco | 52148 |
+|      SF       |  136  |
+
+Analysis of state name data show that there 52 089 values entered as CA
+and 97 as California. Also, the analysis revealed that there are 129
+data entered as ISO country code for Illinois which are incorrect data
+as San Francisco is in the state of California, USA.
+
+|   State    | Total |
+|:----------:|:-----:|
+|     CA     | 52089 |
+| California |  97   |
+|     IL     |  129  |
+
+```{r include=FALSE}
+data$business_city <- as.factor(data$business_city)
+
+summarized_business_city_data <- data %>% 
+                                 dplyr::mutate(n = 1) %>%
+                                 dplyr::group_by(business_city) %>%
+                                 dplyr::summarise(total = sum(n))
+
+summarized_business_city_data <- dplyr::mutate_if(summarized_business_city_data, is.factor, as.character)
+summarized_business_city_data[1,1] <-  "NA"
+names(summarized_business_city_data)[1] <-  "Business city"
+names(summarized_business_city_data)[2] <-  "Total"
+
+```
+
+```{r include=FALSE}
+data$business_state <- as.factor(data$business_state)
+
+summarized_business_state_data <- data %>% 
+                                 dplyr::mutate(n = 1) %>%
+                                 dplyr::group_by(business_state) %>%
+                                 dplyr::summarise(total = sum(n))
+
+summarized_business_state_data  <- dplyr::mutate_if(summarized_business_state_data , is.factor, as.character)
+#summarized_business_city_data[1,1] <-  "NA"
+names(summarized_business_state_data)[1] <-  "Business state"
+names(summarized_business_state_data)[2] <-  "Total"
+
+```
+
+```{r include=FALSE, calculations}
 
 summary(data)
 
@@ -42,13 +251,7 @@ length(unique(data$business_longitude))
 ##################
 ## discrepancu between number of distinct values for address long and latitude value
 ##################
-
 sort(unique(data$business_name))
-
-data%>%dplyr::filter(stringr::str_detect(business_name,"7 Eleven"))
-
-nrow(data)
-
 
 empty_and_unknown_values <- data %>% dplyr::filter(business_name != '', business_name !='hidden', business_name !='Hidden', business_name != 'Unavailable')
 
@@ -82,33 +285,137 @@ missing_lat_values <- data %>%
 
 
 
-## business names column 
-unique_values <- data %>%
-  dplyr::mutate(unique_identifier = stringr::str_c(business_name,"-",business_latitude,"-",business_longitude)) %>%
-  dplyr::select(business_name, business_longitude, business_latitude, everything()) %>%
-  dplyr::mutate(business_names_missing_data = ifelse(business_name == '' & business_latitude != '',TRUE, FALSE))
+## Missing all critical values
 
-business_names_missing_data <-  dplyr::filter(unique_values, business_names_missing_data == TRUE)
+bussines_names_long_lat_values_validation <- data %>% dplyr::mutate_all(~ ifelse(is.na(.x),"NA",.x))
+bussines_names_long_lat_values_validation$business_name <-  stringr::str_replace(bussines_names_long_lat_values_validation$business_name,"hidden","NA")
+bussines_names_long_lat_values_validation$business_name <-  stringr::str_replace(bussines_names_long_lat_values_validation$business_name,"Hidden","NA")
+bussines_names_long_lat_values_validation$business_name <-  stringr::str_replace(bussines_names_long_lat_values_validation$business_name,"Unavailable","NA")
 
-nrow(business_names_missing_data)
+nrow(bussines_names_long_lat_values_validation %>% dplyr::filter(business_name == 'NA', business_latitude == 'NA', business_longitude == 'NA'))
 
-unique(unique_values$unique_identifier)
 
-## business
+# PRECISION OF LONG AND LAT VALUES (number of decimal values)
 
-unique_values <- data %>%
-  #dplyr::mutate(unique_identifier = stringr::str_c(business_name,"-",business_latitude,"-",business_longitude)) %>%
-  dplyr::select(business_name, business_longitude, business_latitude, everything()) %>%
-  dplyr::mutate(business_latitude = as.character(business_latitude),
-                business_longitude = as.character(business_longitude))%>%
-  mutate_if(is.na,)
-  
-#dplyr::mutate(long_and_lat_missing_data = ifelse(business_latitude == '',TRUE, FALSE))
+## create function to calculate number of decimal points
 
-long_and_lat_missing_data <-  dplyr::filter(unique_values, long_and_lat_missing_data == TRUE)
+business_longitude_decimal_points <- data %>% 
+                                    dplyr::mutate(
+                                      business_longitude = as.character(business_longitude),
+                                      num_of_decimals_long_values = countDecimals(business_longitude)) %>%
+                                    dplyr::select(business_longitude, num_of_decimals_long_values) %>%
+                                    dplyr::mutate(num_of_decimals_in_longitudinal_values = as.factor(num_of_decimals_long_values),
+                                          total = 1) %>%
+                                    dplyr::group_by(num_of_decimals_in_longitudinal_values) %>%
+                                    dplyr::summarise(n = sum(total))%>%
+                                    dplyr::mutate(num_of_decimals_in_longitudinal_values = as.numeric(num_of_decimals_in_longitudinal_values)) %>%
+                                    dplyr::filter(num_of_decimals_in_longitudinal_values < 3) %>%
+                                    dplyr::summarise(total = sum(n))
+                                    
 
-nrow(na.omit(data))
+                                    
+business_latitude_decimal_points <- data %>% 
+                                    dplyr::mutate(
+                                      business_latitude = as.character(business_latitude),
+                                      num_of_decimals_lat_values = countDecimals(business_latitude)) %>%
+                                    dplyr::select(business_latitude, num_of_decimals_lat_values) %>%
+                                    dplyr::mutate(num_of_decimals_in_latitude_values = as.factor(num_of_decimals_lat_values),
+                                          total = 1) %>%
+                                    dplyr::group_by(num_of_decimals_in_latitude_values) %>%
+                                    dplyr::summarise(n = sum(total)) %>%
+                                    dplyr::mutate(num_of_decimals_in_latitude_values = as.numeric(num_of_decimals_in_latitude_values)) %>%
+                                    dplyr::filter(num_of_decimals_in_latitude_values == 3) %>%
+                                    dplyr::summarise(total = sum(n))
+
+
+
+
 
 ```
 
+## Data correctness
 
+The sample was selected randomly from rows with complete critical data
+(i.e. business name, longitude, and latitude). Duplicate values for
+business names were excluded from the dataset prior to sampling. Data
+were shuffled to get random values from the dataset. Additionally, from
+column business location which includes full business location data
+(i.e. long. and lat. values), brackets were removed to enable me to
+fetch data from an external API.
+
+Sample data were exported in Excel worksheet and then imported into
+Google sheets. API connector add-in, available in Google sheets was used
+to make an API request to position stack API. Positionstack has the
+option of sending batch API call by referencing column with full
+location data (long. and lat. values separated by comma). API URL to
+which GET request was sent is
+[<http://api.positionstack.com/v1/forwar>](http://api.positionstack.com/v1/forward)
+? access_key = \<USER ACCESS KEY> &
+query=+++Master_sheet!I2:I501+++&limit=1. All data from Excel file were
+copied to Master_sheet and API results were stored in ValidationSheet.
+Returned API data
+showed that out of 500 data sampled from the original dataset, there
+were 39 duplicate values in column business location, hence 39 (8%) out
+of 500 distinct business names are presented with identical long. and
+lat. Values in the data set.
+
+Analysis of sample data was also done in an Excel file (data.xlsx). Data
+retrieved from API call in Google sheet were copied in sheet
+validatedData and then using VLOOKUP in Excel file returned addresses
+were compared to addresses available in Master sheet to check if long.
+and lat. values are the same in both sheets. Analysis of data showed
+that out of 500 data, 474 (95%) addresses returned from API did not
+match with addresses available from the original dataset from the
+supplier. Considering that almost 95 percent of the data did not match I
+engaged in the manual analysis of the first 15 entries used in the API
+call to check their accuracy on google maps and the data returned from
+API was consistent with data returned by google maps.
+
+```{r include=FALSE, sample_check}
+
+sample_data <- data %>%
+              dplyr::filter(business_name != "", business_location != "")
+
+# get information about the number of unique business names values that have complete set of critical data -
+# business name & business location (long and lat value)
+sample_data <- sample_data [!duplicated(sample_data$business_name),]
+
+length(sample_data$business_name)
+
+number_of_data_without_duplicate_names <- nrow(sample_data)
+
+sample_data <- sample_data [!duplicated(sample_data$business_location),]
+
+number_of_data_without_duplicate_long_and_lat_values <- nrow(sample_data)
+
+total_number_of_locations_with_duplicate_long_and_lat_values = number_of_data_without_duplicate_names - number_of_data_without_duplicate_long_and_lat_values
+
+
+set.seed(42)
+rows <- sample(nrow(sample_data))
+
+sample_data_for_validation <- sample_data[rows,]
+sample_data_for_validation <- sample_data_for_validation[1:500,]
+sample_data_for_validation$business_location <- stringr::str_remove(sample_data_for_validation$business_location,"\\(")
+sample_data_for_validation$business_location <- stringr::str_remove(sample_data_for_validation$business_location,"\\)")
+
+
+wb <-  openxlsx::createWorkbook()
+openxlsx::addWorksheet(wb, sheetName = 'data',gridLines = TRUE)
+openxlsx::writeData(wb, sheet = "data", x = sample_data_for_validation, rowNames = FALSE)
+openxlsx::saveWorkbook(wb, "/Users/adnanovcina/data_analysis_assignment/data.xlsx", overwrite = TRUE)
+
+```
+
+# Final remarks and recommendations
+
+Analysis of data as presented above identified many errors in terms of
+the number of missing values, data completeness, and data accuracy.
+Considering the findings from the analysis of a random sample collected
+from the original data set conclusion can be drawn that all data
+available in the data set are of questionable quality and require
+extensive cleaning before they can be used in navigator.ba app for
+displaying data to end-user.
+
+The recommendation is not to engage in further negotiation with the
+supplier. Efforts should be made to identify another source of POIs.
