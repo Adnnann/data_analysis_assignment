@@ -97,11 +97,17 @@ unique(unique_values$unique_identifier)
 ## business
 
 unique_values <- data %>%
-  dplyr::mutate(unique_identifier = stringr::str_c(business_name,"-",business_latitude,"-",business_longitude)) %>%
+  #dplyr::mutate(unique_identifier = stringr::str_c(business_name,"-",business_latitude,"-",business_longitude)) %>%
   dplyr::select(business_name, business_longitude, business_latitude, everything()) %>%
-  dplyr::mutate(business_names_missing_data = ifelse(business_name != '' & (business_latitude == '' | business_longitude == ''),TRUE, FALSE))
+  dplyr::mutate(business_latitude = as.character(business_latitude),
+                business_longitude = as.character(business_longitude))%>%
+  mutate_if(is.na,)
+  
+#dplyr::mutate(long_and_lat_missing_data = ifelse(business_latitude == '',TRUE, FALSE))
 
+long_and_lat_missing_data <-  dplyr::filter(unique_values, long_and_lat_missing_data == TRUE)
 
+nrow(na.omit(data))
 
 ```
 
